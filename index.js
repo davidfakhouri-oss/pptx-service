@@ -2,17 +2,25 @@ const express = require('express');
 const PptxGenJS = require('pptxgenjs');
 const app = express();
 app.use(express.json({ limit: '10mb' }));
+
 app.get('/', (req, res) => res.send('OK'));
 
 app.post('/generate', async (req, res) => {
   try {
-    let parsed = req.body.parsed;
+    let parsed = req.body.parsed || req.body;
 
     if (typeof parsed === 'string') {
       parsed = parsed.replace(/^```json\n?/, '').replace(/^```\n?/, '').replace(/```$/, '').trim();
       const jsonStart = parsed.indexOf('{');
       const jsonEnd = parsed.lastIndexOf('}');
       parsed = JSON.parse(parsed.substring(jsonStart, jsonEnd + 1));
+    }
+
+    // Handle nested parsed object
+    if (parsed.parsed) parsed = parsed.parsed;
+
+    if (!parsed.slides) {
+      return res.status(500).json({ error: `No slides found. Keys: ${Object.keys(parsed).join(', ')}` });
     }
 
     const COLORS = {
