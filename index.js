@@ -66,4 +66,5 @@ app.post('/generate', async (req, res) => {
   }
 });
 
-app.listen(process.env.PORT || 3000, () => console.log('PPTX service running'));
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, '0.0.0.0', () => console.log(`PPTX service running on port ${PORT}`));
