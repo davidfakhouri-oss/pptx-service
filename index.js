@@ -1,6 +1,7 @@
 const express = require('express');
 const PptxGenJS = require('pptxgenjs');
 const app = express();
+app.use(express.json({ limit: '10mb' }));
 app.get('/', (req, res) => res.send('OK'));
 
 app.post('/generate', async (req, res) => {
