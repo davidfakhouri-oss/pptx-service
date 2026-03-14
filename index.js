@@ -5,7 +5,15 @@ app.use(express.json({ limit: '10mb' }));
 
 app.post('/generate', async (req, res) => {
   try {
-    const parsed = req.body.parsed;
+    let parsed = req.body.parsed;
+
+    if (typeof parsed === 'string') {
+      parsed = parsed.replace(/^```json\n?/, '').replace(/^```\n?/, '').replace(/```$/, '').trim();
+      const jsonStart = parsed.indexOf('{');
+      const jsonEnd = parsed.lastIndexOf('}');
+      parsed = JSON.parse(parsed.substring(jsonStart, jsonEnd + 1));
+    }
+
     const COLORS = {
       darkNavy: "0D1B2A", accentGold: "C8952A", lightGray: "F2F4F7",
       mediumGray: "8395A7", white: "FFFFFF", textDark: "1A1A2E",
