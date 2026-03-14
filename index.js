@@ -16,11 +16,12 @@ app.post('/generate', async (req, res) => {
       parsed = JSON.parse(parsed.substring(jsonStart, jsonEnd + 1));
     }
 
-    // Handle nested parsed object
     if (parsed.parsed) parsed = parsed.parsed;
 
     if (!parsed.slides) {
-      return res.status(500).json({ error: `No slides found. Keys: ${Object.keys(parsed).join(', ')}` });
+      return res.status(500).json({ 
+        error: 'No slides found. Keys received: ' + Object.keys(parsed).join(', ') + '. Full body keys: ' + Object.keys(req.body).join(', ')
+      });
     }
 
     const COLORS = {
