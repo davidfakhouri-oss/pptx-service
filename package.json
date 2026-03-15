@@ -1,6 +1,7 @@
 {
   "name": "pptx-service",
   "version": "1.0.6",
+  "description": "pptx",
   "main": "index.js",
   "scripts": { "start": "node index.js" },
   "dependencies": {
