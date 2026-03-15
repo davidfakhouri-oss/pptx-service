@@ -1,4 +1,4 @@
-const express = require('express'); // v7
+const express = require('express'); // v8
 const PptxGenJS = require('pptxgenjs');
 const app = express();
 app.use(express.json({ limit: '10mb' }));
@@ -22,21 +22,28 @@ app.post('/generate', async (req, res) => {
     code = code.replace(/'#([0-9A-Fa-f]{6})'/g, "'$1'");
     code = code.replace(/"#([0-9A-Fa-f]{6})"/g, '"$1"');
 
-    // Replace require('pptxgenjs') with a reference to the already-loaded module
-    code = code.replace(/const PptxGenJS = require\(['"]pptxgenjs['"]\);?/g, '');
-    code = `const PptxGenJS = __PptxGenJS;\n` + code;
+    // Remove the require('pptxgenjs') line — we inject it directly
+    code = code.replace(/const PptxGenJS\s*=\s*require\(['"]pptxgenjs['"]\)\s*;?\n?/g, '');
+
+    // Remove module.exports line — we handle the write ourselves
+    code = code.replace(/module\.exports\s*=\s*async\s*function\s*\(\)\s*\{[\s\S]*?\}\s*;?\s*$/m, '');
+
+    // Build the final executable code
+    const finalCode = `
+const PptxGenJS = require('pptxgenjs');
+${code}
+module.exports = async function() { return await pptx.write("nodebuffer"); };
+`;
 
     const fs = require('fs');
     const path = require('path');
-    const tmpFile = path.join('/tmp', `slide_${Date.now()}.js`);
 
-    // Wrap code in a function that receives PptxGenJS
-    const wrappedCode = `
-module.exports = async function(__PptxGenJS) {
-${code}
-}`;
+    // Write to /app/tmp so it can access node_modules
+    const tmpDir = path.join('/app', 'tmp');
+    if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir);
+    const tmpFile = path.join(tmpDir, `slide_${Date.now()}.js`);
 
-    fs.writeFileSync(tmpFile, wrappedCode);
+    fs.writeFileSync(tmpFile, finalCode);
 
     let slideModule;
     try {
@@ -53,7 +60,7 @@ ${code}
 
     let buffer;
     try {
-      buffer = await slideModule(PptxGenJS);
+      buffer = await slideModule();
     } catch (runtimeErr) {
       try { fs.unlinkSync(tmpFile); } catch(e) {}
       return res.status(500).json({ 
