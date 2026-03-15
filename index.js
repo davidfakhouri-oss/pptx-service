@@ -1,4 +1,5 @@
-const express = require('express'); // v6
+const express = require('express'); // v7
+const PptxGenJS = require('pptxgenjs');
 const app = express();
 app.use(express.json({ limit: '10mb' }));
 
@@ -17,15 +18,25 @@ app.post('/generate', async (req, res) => {
         .trim();
     }
 
-    // Auto-fix common Claude mistakes
+    // Strip # from hex colors just in case
     code = code.replace(/'#([0-9A-Fa-f]{6})'/g, "'$1'");
     code = code.replace(/"#([0-9A-Fa-f]{6})"/g, '"$1"');
-    code = code.replace(/pptx\.ShapeType\.line/g, 'pptx.ShapeType.rect');
+
+    // Replace require('pptxgenjs') with a reference to the already-loaded module
+    code = code.replace(/const PptxGenJS = require\(['"]pptxgenjs['"]\);?/g, '');
+    code = `const PptxGenJS = __PptxGenJS;\n` + code;
 
     const fs = require('fs');
     const path = require('path');
     const tmpFile = path.join('/tmp', `slide_${Date.now()}.js`);
-    fs.writeFileSync(tmpFile, code);
+
+    // Wrap code in a function that receives PptxGenJS
+    const wrappedCode = `
+module.exports = async function(__PptxGenJS) {
+${code}
+}`;
+
+    fs.writeFileSync(tmpFile, wrappedCode);
 
     let slideModule;
     try {
@@ -42,7 +53,7 @@ app.post('/generate', async (req, res) => {
 
     let buffer;
     try {
-      buffer = await slideModule();
+      buffer = await slideModule(PptxGenJS);
     } catch (runtimeErr) {
       try { fs.unlinkSync(tmpFile); } catch(e) {}
       return res.status(500).json({ 
@@ -61,8 +72,7 @@ app.post('/generate', async (req, res) => {
   } catch (err) {
     res.status(500).json({ 
       error: err.message,
-      type: 'GENERAL_ERROR',
-      line: err.stack ? err.stack.split('\n')[1] : 'unknown'
+      type: 'GENERAL_ERROR'
     });
   }
 });
